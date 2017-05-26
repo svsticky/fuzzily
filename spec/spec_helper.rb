@@ -1,15 +1,8 @@
 require 'fuzzily'
 require 'pathname'
 require 'yaml'
-require 'coveralls'
-
-Coveralls.wear!
 
 DATABASE = Pathname.new 'test.sqlite3'
-
-# def get_adapter
-#   ENV.fetch('FUZZILY_ADAPTER', 'sqlite3')
-# end
 
 # Database connection hashes
 def get_connection_hash
@@ -37,13 +30,28 @@ def get_connection_hash
   end
 end
 
+# NOTE not sure if threadsafe, removed from RAILS 5 kernel
+def silence_stream(*streams)
+  on_hold = streams.collect { |stream| stream.dup }
+  streams.each do |stream|
+    stream.reopen(RUBY_PLATFORM =~ /mswin/ ? 'NUL:' : '/dev/null')
+    stream.sync = true
+  end
+  yield
+ensure
+  streams.each_with_index do |stream, i|
+    stream.reopen(on_hold[i])
+  end
+end
+
 # A test model we'll need as a source of trigrams
 class Stuff < ActiveRecord::Base ; end
-class StuffMigration < ActiveRecord::Migration
+class StuffMigration < ActiveRecord::Migration[4.2]
   def self.up
     create_table :stuffs do |t|
       t.string :name
       t.string :data
+      t.string :flag
       t.timestamps
     end
   end
@@ -64,7 +72,7 @@ RSpec.configure do |config|
 
     def prepare_trigrams_table
       silence_stream(STDOUT) do
-        Class.new(ActiveRecord::Migration).extend(Fuzzily::Migration).up
+        Class.new(ActiveRecord::Migration[4.2]).extend(Fuzzily::Migration).up
       end
     end
 
