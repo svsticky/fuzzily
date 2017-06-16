@@ -10,7 +10,7 @@ module Fuzzily
       by.class_eval do
         return if class_variable_defined?(:@@fuzzily_trigram_model)
 
-        belongs_to :owner, :polymorphic => true
+        belongs_to :owner,        :polymorphic => true
         validates_presence_of     :owner
         validates_uniqueness_of   :trigram, :scope => [:owner_type, :owner_id, :fuzzy_field]
         validates_length_of       :trigram, :is => 3
@@ -27,7 +27,25 @@ module Fuzzily
         _matches_for_trigrams Fuzzily::String.new(text).trigrams
       end
 
+      # Add a function to search thru all models
+      def find_by_fuzzy(pattern, options={})
+        trigrams = limit(options.fetch(:limit, 10)).
+        offset(options.fetch(:offset, 0)).
+        matches_for(pattern)
+
+        records = _load_for_ids trigrams.map{ |o| [o.owner_type, o.owner_id] }
+
+        #TODO order and filter nil's
+      end
+
+
       private
+      def _load_for_ids(ids) #TODO group on type
+        ids.map do |key, value|
+          key.constantize.find_by_id value
+        end
+      end
+
       def _matches_for_trigrams(trigrams)
         self.
           select('owner_id, owner_type, count(*) AS matches, MAX(score) AS score').
@@ -42,6 +60,22 @@ module Fuzzily
         }
         scope :for_field,  lambda { |field_name| where(:fuzzy_field => field_name) }
         scope :with_trigram, lambda { |trigrams| where(:trigram => trigrams) }
+
+        scope :within, -> (ids) do
+          if ids.is_a? Array
+            where(:owner_id => ids)
+          elsif ids.is_a? Hash
+            query = ids.map do |model, records|
+              if records.nil?
+                "owner_type = '#{model}'"
+              else
+                "(owner_type = '#{model}' AND owner_id IN (#{records.pluck(:id).join(',')}))"
+              end
+            end
+
+            where(query.join(' or '))
+          end
+        end
       end
     end
   end
