@@ -81,7 +81,7 @@ RSpec.configure do |config|
   config.before(:each) do
     # Connect to & cleanup test database
     ActiveRecord::Base.establish_connection(get_connection_hash)
-    ActiveRecord::Base.logger = Logger.new(STDOUT) if defined?(ActiveRecord::Base)
+    # ActiveRecord::Base.logger = Logger.new(STDOUT) if defined?(ActiveRecord::Base)
 
     %w(trigrams stuffs foobars people).each do |table_name|
       ActiveRecord::Base.connection.execute "DROP TABLE IF EXISTS #{table_name};"

@@ -23,20 +23,19 @@ module Fuzzily
     end
 
     module ClassMethods
-      def matches_for(text, options={})
+      def matches_for(text)
         _matches_for_trigrams Fuzzily::String.new(text).trigrams
       end
 
       # Add a function to search thru all models
       def find_by_fuzzy(pattern, options={})
-        _collect_default_filters
-
         trigrams = limit(options.fetch(:limit, 10)).
         offset(options.fetch(:offset, 0)).
-        within(class_variable_get(:@@fuzzily_default_filters)).
         matches_for(pattern)
 
         records = _load_for_ids trigrams.map{ |o| [o.owner_type, o.owner_id] }
+
+        #TODO order and filter nil's
       end
 
 
@@ -47,20 +46,12 @@ module Fuzzily
         end
       end
 
-      def _matches_for_trigrams(trigrams, options={})
+      def _matches_for_trigrams(trigrams)
         self.
           select('owner_id, owner_type, count(*) AS matches, MAX(score) AS score').
           group('owner_id, owner_type').
           order('matches DESC, score ASC').
           with_trigram(trigrams)
-      end
-
-      def _collect_default_filters
-        return if class_variable_defined?(:@@fuzzily_default_filters)
-
-        class_variable_set(:@@fuzzily_default_filters, class_variables.
-        reject{ |v| !v.to_s.starts_with? '@@fuzzily_class_' }.
-        map { |v| [v.to_s.split('@@fuzzily_class_')[1], class_variable_get(v)] }.to_h)
       end
 
       def _add_fuzzy_scopes

@@ -210,7 +210,7 @@ describe Fuzzily::Searchable do
       end
 
       it 'use default filters' do
-        subject.fuzzily_searchable :name, { :default_filter => subject.where(:flag => true) }
+        subject.fuzzily_searchable :name #TODO , { :default_scope => subject.where(:flag => true) }
         @new_york = subject.create!(:name => 'New York', :flag => true)
         @yorkshire = subject.create!(:name => 'Yorkshire', :flag => true)
         @newport = subject.create!(:name => 'New Port', :flag => false)
